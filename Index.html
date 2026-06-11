@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Tellers" />
+  <meta name="theme-color" content="#0a0a0f" />
+  <title>Tellers</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,300&display=swap" rel="stylesheet" />
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg: #0a0a0f;
+      --surface: #13131a;
+      --surface2: #1c1c27;
+      --border: #2a2a3a;
+      --accent: #c8a96e;
+      --accent2: #6e9ec8;
+      --text: #e8e8f0;
+      --muted: #6b6b80;
+      --up-color: #6ec89a;
+      --down-color: #c86e6e;
+      --font-display: 'Fraunces', serif;
+      --font-mono: 'DM Mono', monospace;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--font-mono);
+      min-height: 100dvh;
+      overflow-x: hidden;
+    }
+
+    /* Subtle grain texture */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 1000;
+      opacity: 0.4;
+    }
+
+    header {
+      padding: 1.5rem 1.5rem 0;
+      display: flex;
+      align-items: baseline;
+      justify-content: space-between;
+    }
+
+    .app-title {
+      font-family: var(--font-display);
+      font-size: 1.8rem;
+      font-weight: 300;
+      color: var(--text);
+      letter-spacing: -0.02em;
+    }
+
+    .app-title span {
+      color: var(--accent);
+      font-style: italic;
+    }
+
+    .add-btn {
+      background: var(--accent);
+      color: var(--bg);
+      border: none;
+      width: 2.4rem;
+      height: 2.4rem;
+      border-radius: 50%;
+      font-size: 1.4rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.15s, opacity 0.15s;
+      flex-shrink: 0;
+    }
+
+    .add-btn:active { transform: scale(0.92); opacity: 0.8; }
+
+    .cards {
+      padding: 1.25rem 1.25rem 6rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 4rem 2rem;
+      color: var(--muted);
+      font-size: 0.85rem;
+      line-height: 2;
+    }
+
+    .empty-state .big {
+      font-family: var(--font-display);
+      font-size: 3rem;
+      display: block;
+      margin-bottom: 0.5rem;
+      opacity: 0.3;
+    }
+
+    /* CARD */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 1.25rem 1.25rem 1rem;
+      position: relative;
+      overflow: hidden;
+      animation: slideIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(12px) scale(0.97); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      border-radius: 16px 16px 0 0;
+    }
+    .card.up::before   { background: var(--up-color); }
+    .card.down::before { background: var(--down-color); }
+
+    .card-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      margin-bottom: 0.75rem;
+    }
+
+    .card-label {
+      font-family: var(--font-display);
+      font-size: 1.05rem;
+      font-weight: 300;
+      color: var(--text);
+      line-height: 1.3;
+      flex: 1;
+      padding-right: 0.5rem;
+    }
+
+    .card-actions {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .icon-btn {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      width: 2rem;
+      height: 2rem;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 0.8rem;
+      transition: color 0.15s, border-color 0.15s;
+    }
+    .icon-btn:active { opacity: 0.7; }
+    .icon-btn.delete:hover { color: var(--down-color); border-color: var(--down-color); }
+
+    .time-display {
+      font-family: var(--font-mono);
+      font-size: clamp(1.6rem, 7vw, 2.2rem);
+      font-weight: 500;
+      letter-spacing: -0.03em;
+      line-height: 1;
+      margin-bottom: 0.4rem;
+    }
+    .card.up   .time-display { color: var(--up-color); }
+    .card.down .time-display { color: var(--down-color); }
+
+    .time-sub {
+      font-size: 0.72rem;
+      color: var(--muted);
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
+    }
+
+    .type-badge {
+      position: absolute;
+      bottom: 1rem;
+      right: 1.25rem;
+      font-size: 0.65rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* MODAL */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 100;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.25s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      pointer-events: all;
+    }
+
+    .modal {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px 20px 0 0;
+      padding: 1.5rem;
+      width: 100%;
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.34, 1.2, 0.64, 1);
+    }
+    .modal-overlay.open .modal {
+      transform: translateY(0);
+    }
+
+    .modal h2 {
+      font-family: var(--font-display);
+      font-weight: 300;
+      font-size: 1.4rem;
+      margin-bottom: 1.25rem;
+      color: var(--text);
+    }
+
+    .form-group {
+      margin-bottom: 1rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.72rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="text"],
+    input[type="datetime-local"],
+    input[type="date"] {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      color: var(--text);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+      padding: 0.7rem 0.9rem;
+      outline: none;
+      transition: border-color 0.15s;
+    }
+    input:focus { border-color: var(--accent); }
+
+    .type-toggle {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+    }
+
+    .type-option {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 0.7rem;
+      text-align: center;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: var(--muted);
+      transition: all 0.15s;
+    }
+    .type-option.active.up   { border-color: var(--up-color);   color: var(--up-color);   background: rgba(110,200,154,0.08); }
+    .type-option.active.down { border-color: var(--down-color); color: var(--down-color); background: rgba(200,110,110,0.08); }
+
+    .modal-actions {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.75rem;
+      margin-top: 1.25rem;
+    }
+
+    .btn {
+      padding: 0.85rem;
+      border-radius: 12px;
+      border: none;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      cursor: pointer;
+      transition: opacity 0.15s, transform 0.1s;
+    }
+    .btn:active { transform: scale(0.97); opacity: 0.8; }
+    .btn-cancel { background: var(--surface2); color: var(--muted); border: 1px solid var(--border); }
+    .btn-save   { background: var(--accent); color: var(--bg); font-weight: 500; }
+
+    .date-row {
+      display: none;
+    }
+    .date-row.visible { display: block; }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="app-title">Tel<span>lers</span></div>
+  <div style="display:flex;gap:0.5rem;">
+    <button class="icon-btn" onclick="exportCounters()" title="Exporteren">⇩</button>
+    <button class="icon-btn" onclick="document.getElementById('importFile').click()" title="Importeren">⇧</button>
+    <button class="add-btn" onclick="openModal()" aria-label="Teller toevoegen">+</button>
+  </div>
+</header>
+<input type="file" id="importFile" accept=".json" style="display:none">
+
+<div class="cards" id="cards"></div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay" onclick="handleOverlayClick(event)">
+  <div class="modal">
+    <h2 id="modalTitle">Nieuwe teller</h2>
+
+    <div class="form-group">
+      <label>Naam</label>
+      <input type="text" id="inputLabel" placeholder="bijv. Laatste kapper bezoek" />
+    </div>
+
+    <div class="form-group">
+      <label>Type</label>
+      <div class="type-toggle">
+        <div class="type-option up active" id="optUp" onclick="selectType('up')">⬆ Oplopen<br><small>vanaf datum</small></div>
+        <div class="type-option down" id="optDown" onclick="selectType('down')">⬇ Aftellen<br><small>naar datum</small></div>
+      </div>
+    </div>
+
+    <div class="form-group date-row" id="dateRow">
+      <label id="dateLabel">Doeldatum</label>
+      <input type="datetime-local" id="inputDate" />
+    </div>
+
+    <div class="form-group" id="startDateRow">
+      <label>Startdatum</label>
+      <input type="date" id="inputStartDate" />
+    </div>
+
+    <div class="modal-actions">
+      <button class="btn btn-cancel" onclick="closeModal()">Annuleren</button>
+      <button class="btn btn-save" onclick="saveCounter()">Opslaan</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  let counters = JSON.parse(localStorage.getItem('tellers') || '[]');
+  let selectedType = 'up';
+  let editingId = null;
+
+  function save() {
+    localStorage.setItem('tellers', JSON.stringify(counters));
+  }
+
+  function selectType(type) {
+    selectedType = type;
+    document.getElementById('optUp').classList.toggle('active', type === 'up');
+    document.getElementById('optDown').classList.toggle('active', type === 'down');
+    document.getElementById('dateRow').classList.toggle('visible', type === 'down');
+    document.getElementById('startDateRow').style.display = type === 'up' ? 'block' : 'none';
+    if (type === 'up') {
+      document.getElementById('dateLabel').textContent = 'Startdatum';
+    } else {
+      document.getElementById('dateLabel').textContent = 'Doeldatum';
+    }
+  }
+
+  function openModal(id = null) {
+    editingId = id;
+    const modal = document.getElementById('modalOverlay');
+    document.getElementById('modalTitle').textContent = id ? 'Teller bewerken' : 'Nieuwe teller';
+
+    if (id) {
+      const c = counters.find(x => x.id === id);
+      document.getElementById('inputLabel').value = c.label;
+      selectType(c.type);
+      if (c.type === 'up') {
+        document.getElementById('inputStartDate').value = c.startDate;
+      } else {
+        document.getElementById('inputDate').value = c.targetDate;
+      }
+    } else {
+      document.getElementById('inputLabel').value = '';
+      document.getElementById('inputStartDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inputDate').value = '';
+      selectType('up');
+    }
+
+    modal.classList.add('open');
+    setTimeout(() => document.getElementById('inputLabel').focus(), 350);
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('open');
+    editingId = null;
+  }
+
+  function handleOverlayClick(e) {
+    if (e.target === document.getElementById('modalOverlay')) closeModal();
+  }
+
+  function saveCounter() {
+    const label = document.getElementById('inputLabel').value.trim();
+    if (!label) { document.getElementById('inputLabel').focus(); return; }
+
+    if (selectedType === 'up') {
+      const startDate = document.getElementById('inputStartDate').value;
+      if (!startDate) { document.getElementById('inputStartDate').focus(); return; }
+      if (editingId) {
+        const c = counters.find(x => x.id === editingId);
+        c.label = label; c.type = 'up'; c.startDate = startDate;
+      } else {
+        counters.unshift({ id: Date.now().toString(), label, type: 'up', startDate });
+      }
+    } else {
+      const targetDate = document.getElementById('inputDate').value;
+      if (!targetDate) { document.getElementById('inputDate').focus(); return; }
+      if (editingId) {
+        const c = counters.find(x => x.id === editingId);
+        c.label = label; c.type = 'down'; c.targetDate = targetDate;
+      } else {
+        counters.unshift({ id: Date.now().toString(), label, type: 'down', targetDate });
+      }
+    }
+
+    save();
+    closeModal();
+    render();
+  }
+
+  function deleteCounter(id) {
+    counters = counters.filter(x => x.id !== id);
+    save();
+    render();
+  }
+
+  function formatDuration(ms, type) {
+    const past = ms < 0;
+    const abs = Math.abs(ms);
+
+    const totalSec = Math.floor(abs / 1000);
+    const sec  = totalSec % 60;
+    const min  = Math.floor(totalSec / 60) % 60;
+    const hr   = Math.floor(totalSec / 3600) % 24;
+    const days = Math.floor(abs / 86400000);
+    const years = Math.floor(days / 365);
+    const remDays = days % 365;
+    const months = Math.floor(remDays / 30);
+    const remD = remDays % 30;
+
+    let main = '';
+    let sub = '';
+
+    if (days < 1) {
+      main = `${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      sub = 'uren · minuten · seconden';
+    } else if (days < 7) {
+      main = `${days}d ${String(hr).padStart(2,'0')}:${String(min).padStart(2,'0')}:${String(sec).padStart(2,'0')}`;
+      sub = `${days} dag${days !== 1 ? 'en' : ''}`;
+    } else if (days < 365) {
+      main = `${days} dagen`;
+      sub = `${Math.floor(days/7)} weken · ${days % 7} dagen`;
+    } else {
+      main = `${years}j ${months}m ${remD}d`;
+      sub = `${days} dagen totaal`;
+    }
+
+    if (type === 'down' && past) {
+      sub = '⚑ ' + sub + ' geleden voorbij';
+    }
+
+    return { main, sub };
+  }
+
+  function render() {
+    const container = document.getElementById('cards');
+    if (counters.length === 0) {
+      container.innerHTML = `<div class="empty-state"><span class="big">⏱</span>Nog geen tellers.<br>Tik op + om er een toe te voegen.</div>`;
+      return;
+    }
+    container.innerHTML = counters.map(c => {
+      const now = Date.now();
+      let ms;
+      if (c.type === 'up') {
+        ms = now - new Date(c.startDate).getTime();
+      } else {
+        ms = new Date(c.targetDate).getTime() - now;
+      }
+      const { main, sub } = formatDuration(ms, c.type);
+      return `
+        <div class="card ${c.type}" id="card-${c.id}">
+          <div class="card-header">
+            <div class="card-label">${escHtml(c.label)}</div>
+            <div class="card-actions">
+              <button class="icon-btn" onclick="openModal('${c.id}')" title="Bewerken">✎</button>
+              <button class="icon-btn delete" onclick="deleteCounter('${c.id}')" title="Verwijderen">✕</button>
+            </div>
+          </div>
+          <div class="time-display" id="time-${c.id}">${main}</div>
+          <div class="time-sub" id="sub-${c.id}">${sub}</div>
+          <div class="type-badge">${c.type === 'up' ? '↑ verstreken' : '↓ resterend'}</div>
+        </div>`;
+    }).join('');
+  }
+
+  function tick() {
+    const now = Date.now();
+    counters.forEach(c => {
+      const timeEl = document.getElementById('time-' + c.id);
+      const subEl  = document.getElementById('sub-'  + c.id);
+      if (!timeEl) return;
+      let ms;
+      if (c.type === 'up') {
+        ms = now - new Date(c.startDate).getTime();
+      } else {
+        ms = new Date(c.targetDate).getTime() - now;
+      }
+      const { main, sub } = formatDuration(ms, c.type);
+      timeEl.textContent = main;
+      subEl.textContent  = sub;
+    });
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  function exportCounters() {
+    const data = {
+      version: 1,
+      exportedAt: new Date().toISOString(),
+      counters
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'tellers-backup.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  document.getElementById('importFile').addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    try {
+      const text = await file.text();
+      const data = JSON.parse(text);
+
+      if (!Array.isArray(data.counters)) {
+        throw new Error('Ongeldig backupbestand');
+      }
+
+      if (!confirm(`Importeer ${data.counters.length} teller(s)? Bestaande tellers worden vervangen.`)) {
+        return;
+      }
+
+      counters = data.counters;
+      save();
+      render();
+    } catch (err) {
+      alert('Import mislukt: ' + err.message);
+    }
+
+    e.target.value = '';
+  });
+
+
+  render();
+  setInterval(tick, 1000);
+</script>
+</body>
+</html>
