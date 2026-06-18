@@ -190,7 +190,11 @@
       letter-spacing: 0.06em;
       text-transform: uppercase;
     }
-
+    .date-display {
+  margin-top: 0.5rem;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
     .type-badge {
       position: absolute;
       bottom: 1rem;
@@ -321,12 +325,14 @@
 
 <header>
   <div class="app-title">Tel<span>lers</span></div>
-  <div style="display:flex;gap:0.5rem;">
-    <button class="icon-btn" onclick="exportCounters()" title="Exporteren">⇩</button>
-    <button class="icon-btn" onclick="document.getElementById('importFile').click()" title="Importeren">⇧</button>
+
+  <div style="display:flex;gap:0.5rem;align-items:center;">
+    <button class="icon-btn" onclick="exportCounters()" title="Exporteren">⬇</button>
+    <button class="icon-btn" onclick="document.getElementById('importFile').click()" title="Importeren">⬆</button>
     <button class="add-btn" onclick="openModal()" aria-label="Teller toevoegen">+</button>
   </div>
 </header>
+
 <input type="file" id="importFile" accept=".json" style="display:none">
 
 <div class="cards" id="cards"></div>
@@ -356,7 +362,7 @@
 
     <div class="form-group" id="startDateRow">
       <label>Startdatum</label>
-      <input type="date" id="inputStartDate" />
+      <input type="datetime-local" id="inputStartDate" />
     </div>
 
     <div class="modal-actions">
@@ -404,7 +410,10 @@
       }
     } else {
       document.getElementById('inputLabel').value = '';
-      document.getElementById('inputStartDate').value = new Date().toISOString().split('T')[0];
+      document.getElementById('inputStartDate').value =
+  new Date(
+    Date.now() - new Date().getTimezoneOffset() * 60000
+  ).toISOString().slice(0,16);
       document.getElementById('inputDate').value = '';
       selectType('up');
     }
@@ -494,7 +503,74 @@
 
     return { main, sub };
   }
+function formatDisplayDate(value) {
+  if (!value) return '';
 
+  return new Intl.DateTimeFormat('nl-NL', {
+    timeZone: 'Europe/Amsterdam',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  }).format(new Date(value));
+}
+
+function exportCounters() {
+  const data = {
+    version: 2,
+    exportedAt: new Date().toISOString(),
+    counters
+  };
+
+  const blob = new Blob(
+    [JSON.stringify(data, null, 2)],
+    { type: 'application/json' }
+  );
+
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = 'tellers-backup.json';
+  a.click();
+
+  URL.revokeObjectURL(url);
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const fileInput = document.getElementById('importFile');
+
+  if (!fileInput) return;
+
+  fileInput.addEventListener('change', async (e) => {
+    const file = e.target.files[0];
+
+    if (!file) return;
+
+    try {
+      const data = JSON.parse(await file.text());
+
+      if (!Array.isArray(data.counters)) {
+        throw new Error('Ongeldig backupbestand');
+      }
+
+      if (
+        confirm(
+          `Importeer ${data.counters.length} teller(s)? Bestaande tellers worden vervangen.`
+        )
+      ) {
+        counters = data.counters;
+        save();
+        render();
+      }
+    } catch (err) {
+      alert('Import mislukt: ' + err.message);
+    }
+
+    e.target.value = '';
+  });
+});
   function render() {
     const container = document.getElementById('cards');
     if (counters.length === 0) {
@@ -509,8 +585,14 @@
       } else {
         ms = new Date(c.targetDate).getTime() - now;
       }
-      const { main, sub } = formatDuration(ms, c.type);
-      return `
+    const { main, sub } = formatDuration(ms, c.type);
+
+const dateText =
+  c.type === 'up'
+    ? 'Vanaf: ' + formatDisplayDate(c.startDate)
+    : 'Doeldatum: ' + formatDisplayDate(c.targetDate);
+
+return `
         <div class="card ${c.type}" id="card-${c.id}">
           <div class="card-header">
             <div class="card-label">${escHtml(c.label)}</div>
@@ -519,9 +601,10 @@
               <button class="icon-btn delete" onclick="deleteCounter('${c.id}')" title="Verwijderen">✕</button>
             </div>
           </div>
-          <div class="time-display" id="time-${c.id}">${main}</div>
-          <div class="time-sub" id="sub-${c.id}">${sub}</div>
-          <div class="type-badge">${c.type === 'up' ? '↑ verstreken' : '↓ resterend'}</div>
+<div class="time-display" id="time-${c.id}">${main}</div>
+<div class="time-sub" id="sub-${c.id}">${sub}</div>
+<div class="date-display">${dateText}</div>
+<div class="type-badge">${c.type === 'up' ? '↑ verstreken' : '↓ resterend'}</div>
         </div>`;
     }).join('');
   }
