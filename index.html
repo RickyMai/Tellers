@@ -326,11 +326,11 @@
 <header>
   <div class="app-title">Tel<span>lers</span></div>
 
-  <div style="display:flex;gap:0.5rem;align-items:center;">
-    <button class="icon-btn" onclick="exportCounters()" title="Exporteren">⬇</button>
-    <button class="icon-btn" onclick="document.getElementById('importFile').click()" title="Importeren">⬆</button>
-    <button class="add-btn" onclick="openModal()" aria-label="Teller toevoegen">+</button>
-  </div>
+<div style="display:flex;gap:0.5rem;align-items:center;">
+  <button class="icon-btn" onclick="document.getElementById('importFile').click()" title="Importeren">📥</button>
+  <button class="icon-btn" onclick="exportCounters()" title="Exporteren">📤</button>
+  <button class="add-btn" onclick="openModal()" aria-label="Teller toevoegen">+</button>
+</div>
 </header>
 
 <input type="file" id="importFile" accept=".json" style="display:none">
